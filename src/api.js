@@ -1,4 +1,4 @@
-export const getAlbum = async (albumId: string) => {
+export const getAlbum = async (albumId) => {
   const response = await fetch(
     `https://jsonplaceholder.typicode.com/albums/${albumId}`
   );
