@@ -1,46 +1,45 @@
 import { Suspense } from "react";
-import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { defer, useLoaderData, Await } from "react-router-dom";
 
 import { queryClient } from "../App";
-import { getAlbum } from "../api";
+import { getAlbum, getPhotosByAlbumId } from "../api";
 
 export const albumLoader = async ({ params }) => {
   const albumId = params.albumId;
-  await queryClient.prefetchQuery({
-    queryKey: [`album/${albumId}`],
+
+  const album = await queryClient.fetchQuery({
+    queryKey: [`album::${albumId}`],
     queryFn: async () => await getAlbum(albumId),
   });
-};
 
-const useAlbum = (albumId) => {
-  return useQuery({
-    queryKey: [`album/${albumId}`],
-    queryFn: async () => await getAlbum(albumId),
-    suspense: true,
+  const photosPromise = queryClient.fetchQuery({
+    queryKey: [`photos::${albumId}`],
+    queryFn: async () => await getPhotosByAlbumId(albumId),
   });
-};
 
-const PageContent = () => {
-  const params = useParams();
-  const { data } = useAlbum(params.albumId);
-
-  return (
-    <pre>
-      <code>{JSON.stringify(data)}</code>
-    </pre>
-  );
+  return defer({ album, photosPromise });
 };
 
 const RandomAlbum = () => {
-  return (
-    <div>
-      <h1>This is the "Random Album" Page</h1>
+  const { album, photosPromise } = useLoaderData();
 
-      <Suspense fallback={<p>Loading...</p>}>
-        <PageContent />
+  return (
+    <section>
+      <h2>{album.title}</h2>
+      <br />
+
+      <Suspense fallback={<small>Loading Photos...</small>}>
+        <Await resolve={photosPromise}>
+          {(photos) =>
+            photos.map((photo, photoIndex) => {
+              if (photoIndex === 0) {
+                return <img key={photo.id} src={photo.url} alt={photo.title} />;
+              }
+            })
+          }
+        </Await>
       </Suspense>
-    </div>
+    </section>
   );
 };
 
